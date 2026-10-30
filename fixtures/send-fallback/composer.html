@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fixture: composer whose send button no site selector matches</title>
+<!--
+  Hand-written. The composer matches chatgpt's #prompt-textarea but the send
+  button carries a renamed label, so only the send-looking fallback finds it.
+  The unrelated "Send feedback" button is far from the composer.
+-->
+</head>
+<body>
+<main>
+  <button type="button" id="feedback" aria-label="Send feedback">Feedback</button>
+  <form>
+    <textarea id="prompt-textarea"></textarea>
+    <button type="button" id="renamed-send" aria-label="Submit message">Go</button>
+  </form>
+</main>
+</body>
+</html>

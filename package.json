@@ -1,0 +1,26 @@
+{
+  "name": "paste-guard",
+  "version": "1.0.3",
+  "private": true,
+  "license": "MIT",
+  "description": "Notices when a paste, drop or send to an AI chat composer looks like a card number, a SIN, a passport line, a secret key, or a health detail, and asks first. Runs entirely in the browser. No network calls.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "zip": "node scripts/zip.mjs",
+    "test": "npm run build && vitest run && node scripts/check-no-network.mjs dist",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "check-no-network": "node scripts/check-no-network.mjs dist"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/chrome": "^0.0.270",
+    "@types/node": "^22.7.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.0",
+    "playwright": "1.63.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

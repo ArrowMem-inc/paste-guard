@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Paste Guard</title>
+<style>
+  /*
+    Reproduces the popup render (Claude Design export, design render 2),
+    section "The popup -- live SVG mark, status first".
+
+    2026-09-09: the corner control (theme toggle + EN/FR language
+    pill) and the render's "Flagged"/"Error" cards are now built -- see
+    src/popup.ts. The two deviation bullets this comment used to carry for
+    those ("no storage mechanism decided", "no backing data exists") are
+    gone because the reasons are gone; the two REMAINING deviations below
+    are real and still stand.
+
+    Not reproduced, and why:
+      - The card's own border/border-radius/box-shadow and the small
+        square toolbar-icon chip above it: those represent the browser's
+        OWN popup frame and toolbar button in the mockup illustration,
+        which this document cannot draw or attach to -- a border and
+        shadow drawn here would nest inside the browser's own native
+        popup chrome.
+      - The name's font-family is "Space Grotesk", Inter, sans-serif, but
+        Space Grotesk is never reproduced: the render embeds it as a
+        base64 blob, and this extension bundles no font files and makes
+        no network calls (no webfont fetch, ever), so the name always
+        renders in the Inter/system-ui fallback. That is the intended
+        behaviour, not a bug -- documented here since nothing else in the
+        build records it.
+    Every value below IS reproduced from the render's computed styles,
+    including the content div's top padding (44px, sized to clear the
+    corner control -- restored now that the corner control is built; sides
+    16px, bottom 18px, "16px 16px 18px" combined, unchanged throughout).
+
+    Corner control colours: the render's own computed styles for
+    the corner chip, its theme button and its language pill match this
+    file's EXISTING --bg/--mark-bg/--mark-fg/--status-border/--detail-fg
+    tokens exactly in both themes (verified against the export's computed
+    style, not eyeballed). --pill-on is the one value with
+    no existing token to reuse (light #ffffff happens to equal --bg, but
+    dark #111214 is not equal to any existing var -- it is the render's
+    own computed rgb(17,18,20)).
+
+    Corner control words (2026-09-09: the export is treated as the
+    authority over the parent product's theme/language picker where they
+    differ): the pill's VISIBLE text is the render's own two-letter
+    "EN"/"FR" (src/popup.ts, LANG_PILL_TEXT), not that picker's
+    "EN"/"Francais" -- the
+    accessible name (aria-label) still uses the picker's full word so a
+    screen reader hears the language name. #corner now measures 114px wide,
+    matching the render's own computed style exactly (0px difference,
+    re-measured with document.fonts.ready before reading either box). The
+    fix that closed the earlier 18px gap: .corner-lang-btn sets
+    box-sizing:content-box, overriding a <button> element's default
+    border-box in Chromium -- the render's pill chips are <span>s
+    (content-box by default), where min-width and padding both add to the
+    box; a <button> with the UA's border-box default instead spends the
+    padding out of min-width, rendering ~8px narrower per chip. A real
+    <button> is still used here (these are clickable, the render's spans
+    are not) -- only the box-sizing was borrowed to make min-width mean
+    the same 22px either way.
+  */
+  :root {
+    --bg: #ffffff;
+    --fg: #10231a;
+    --mark-bg: #edf3ee;
+    --mark-fg: #14532d;
+    --status-bg: #dce9df;
+    --status-border: #cbd8ce;
+    --status-fg: #10231a;
+    --detail-fg: #55665c;
+    --pill-on: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-force-theme="light"]) {
+      --bg: #0b0b0c;
+      --fg: #ecedee;
+      --mark-bg: #17181a;
+      --mark-fg: #edeef0;
+      --status-bg: #1e2023;
+      --status-border: #2a2c2f;
+      --status-fg: #ecedee;
+      --detail-fg: #a2a6ac;
+      --pill-on: #111214;
+    }
+  }
+  :root[data-force-theme="dark"] {
+    --bg: #0b0b0c;
+    --fg: #ecedee;
+    --mark-bg: #17181a;
+    --mark-fg: #edeef0;
+    --status-bg: #1e2023;
+    --status-border: #2a2c2f;
+    --status-fg: #ecedee;
+    --detail-fg: #a2a6ac;
+    --pill-on: #111214;
+  }
+  body {
+    box-sizing: border-box;
+    font-family: Inter, system-ui, sans-serif;
+    width: 280px;
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  .popup-card {
+    position: relative;
+  }
+  .content {
+    padding: 44px 16px 18px;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    text-decoration: none;
+    color: inherit;
+  }
+  .header:focus-visible {
+    outline: 2px solid var(--mark-fg);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--mark-bg);
+    color: var(--mark-fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
+  .mark svg {
+    width: 18px;
+    height: 18px;
+  }
+  .name {
+    font-family: "Space Grotesk", Inter, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--fg);
+  }
+  #status {
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 600;
+    color: var(--status-fg);
+    background: var(--status-bg);
+    border: 1px solid var(--status-border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin: 0;
+  }
+  #detail {
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--detail-fg);
+    margin: 12px 0 0;
+  }
+  #detail:empty {
+    display: none;
+  }
+
+  /* The corner control. Sizes and colours copied from the render's
+     computed style for the "Loading - Light" and "Active - Dark" cards
+     (both cards use identical corner-control values; only the CSS
+     variables they resolve to differ). */
+  .corner {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg);
+    border: 1px solid var(--status-border);
+    border-radius: 999px;
+  }
+  .corner-theme-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: var(--mark-bg);
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .corner-theme-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+  .corner-divider {
+    width: 1px;
+    height: 14px;
+    background: var(--status-border);
+    flex: 0 0 auto;
+  }
+  .corner-lang {
+    display: flex;
+    gap: 1px;
+    padding: 2px;
+    border-radius: 999px;
+    background: var(--mark-bg);
+  }
+  .corner-lang-btn {
+    /* box-sizing: content-box (overriding the <button> UA default of
+       border-box) so min-width + padding add up the same way the render's
+       <span> pills do -- a <button> is used here instead of the render's
+       illustrative <span> because this one is real and clickable, but the
+       box model needs to match by hand for the render's min-width value to
+       mean the same thing. */
+    box-sizing: content-box;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 5px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--detail-fg);
+    font: inherit;
+    font-size: 9.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .corner-lang-btn[aria-pressed="true"] {
+    background: var(--mark-fg);
+    color: var(--pill-on);
+  }
+</style>
+</head>
+<body>
+<div class="popup-card">
+  <div class="corner" id="corner">
+    <button type="button" class="corner-theme-btn" id="theme-toggle" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <circle cx="9" cy="10" r="1.3" fill="currentColor" stroke="none"></circle>
+        <circle cx="13" cy="8.5" r="1.3" fill="currentColor" stroke="none"></circle>
+        <circle cx="15.5" cy="12.5" r="1.3" fill="currentColor" stroke="none"></circle>
+        <circle cx="10" cy="15" r="1.3" fill="currentColor" stroke="none"></circle>
+      </svg>
+    </button>
+    <div class="corner-divider"></div>
+    <div class="corner-lang">
+      <button type="button" class="corner-lang-btn" id="lang-en" aria-pressed="false"></button>
+      <button type="button" class="corner-lang-btn" id="lang-fr" aria-pressed="false"></button>
+    </div>
+  </div>
+  <div class="content">
+    <a class="header" id="logo-link" href="https://arrowmem.ca" target="_blank" rel="noopener noreferrer">
+      <div class="mark">
+        <svg viewBox="68 95 793 842" role="img" aria-label="ArrowMem">
+          <path fill="currentColor" fill-rule="evenodd" d="M464.7 95.3 L259.2 306.5 L254.9 313.6 L257.8 320.6 L312.1 377.8 L620.1 376.4 L677.3 320.6 L678.7 312.1 L478.1 101.7 L464.7 95.3 Z M464.7 212.6 L384.9 298 L388.4 301.6 L442.1 303 L542.4 303 L548 300.1 L550.1 296.6 L485.2 227.4 L473.2 215.4 L464.7 212.6 Z M216.1 360.9 L68.5 516.9 L69.9 524 L124.3 579.8 L129.9 578.4 L147.6 560.7 L277.5 420.9 L277.5 415.3 L271.9 408.2 L242.9 379.2 L224.6 362.3 L216.1 360.9 Z M709 362.3 L654.7 415.3 L654.7 425.1 L803.7 581.2 L860.9 525.4 L860.9 516.9 L743.6 389.8 L717.5 363.7 L709 362.3 Z M319.2 459.7 L164.5 618.6 L164.5 628.5 L217.5 682.9 L223.2 681.5 L291.7 608.8 L319.2 584 L464.7 732.3 L488.7 714 L611.6 586.9 L617.2 585.5 L710.5 682.9 L718.9 680.1 L770.5 627.1 L762 611.6 L617.2 459.7 L608.8 461.2 L466.1 606.6 L342.5 474.6 L330.5 462.6 L319.2 459.7 Z M319.2 670.2 L259.2 730.2 L464.7 937.1 L473.2 934.3 L500.7 908.2 L636.3 769.8 L671.6 728.8 L634.2 685.7 L617.2 671.6 L610.2 671.6 L464.7 818.5 L348.2 694.9 L327.7 674.4 L319.2 670.2 Z"></path>
+        </svg>
+      </div>
+      <span class="name">Paste Guard</span>
+    </a>
+    <p id="status" role="status">Loading...</p>
+    <p id="detail"></p>
+  </div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>
